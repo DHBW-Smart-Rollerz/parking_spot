@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>parking_spot</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="marijan.buffi@gmail.com">smartrollerz</maintainer>
+  <license>TODO: License declaration</license>
+
+  <build_depend>rclpy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <!-- Python dependencies -->
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scikit-learn</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+
+  <!-- Local package dependencies -->
+  <build_depend>camera_preprocessing</build_depend>
+  <exec_depend>camera_preprocessing</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>
