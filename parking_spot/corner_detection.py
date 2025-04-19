@@ -174,8 +174,8 @@ class CornerDetection(Detection):
         return ret
 
     def draw(
-        self, img: np.ndarray, color=[0, 255, 0], thickness: int = 4
-    ) -> np.ndarray:
+        self, img: np.ndarray, color=[0, 255, 0], thickness: int = 4,
+    points = None) -> np.ndarray:
         """Zeichnet erkannte Ecken in das Bild.
 
         Args:
@@ -186,16 +186,18 @@ class CornerDetection(Detection):
         Returns:
             np.ndarray: Bild mit eingezeichneten Ecken.
         """
-        if self._last_result is None:
+        if points is None:
+            points = self._last_result
+        if points is None:
             return img
-        self._log(f"Anzahl der Ecken: {self._last_result.__len__()}", "DEBUG")
+        self._log(f"Anzahl der Ecken: {points.__len__()}", "DEBUG")
 
-        for corner in self._last_result:
+        for corner in points:
             print(corner)
             x, y = corner.flatten()  # oder corner.ravel()
             img = cv.circle(img, (int(x), int(y)), thickness, [255, 0, 0], -1)
-            self._log(f"{self._last_result.__len__()} Ecken erkannt")
-        self._log(f"Cam: {self._last_result}")
+            self._log(f"{points.__len__()} Ecken erkannt")
+        self._log(f"Cam: {points}")
         self._log(f"Real: {self._last_result_w}")
 
         return img

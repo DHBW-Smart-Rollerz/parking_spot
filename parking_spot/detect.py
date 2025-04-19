@@ -1,3 +1,4 @@
+from parking_spot.image_operations import DetFilter
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -16,8 +17,9 @@ from camera_preprocessing.transformation.coordinate_transform import (
 class CornerDetector(Node):
     """A ROS2 node that subscribes to the undistorted image
     topic and processes the images."""
-
+    
     def __init__(self):
+        self.state = "detecting"
         super().__init__("undistorted_image_subscriber")
 
         # Declare and get parameters
@@ -53,13 +55,29 @@ class CornerDetector(Node):
             return
 
         # Process the image using OpenCV
-        processed_image = self.process_image(cv_image)
+        while (self.state):
+            if (self.state == "detecting"):
+                processed_image = self.detecting(cv_image)
+            
+            elif (self.state == "detected"):
+                processed_image = self.detected(cv_image)
+                
+            elif (self.state == "parking"):
+                processed_image = self.parking(cv_image)
 
-        # Display the processed image
-        cv2.imshow("Processed Undistorted Image", processed_image)
-        cv2.waitKey(1)  # Necessary for OpenCV window to update
+            elif (self.state == "unparking"):
+                processed_image = self.unparking(cv_image)
+                
+            elif (self.state == "finished"):
+                True
+            else:
+                processed_image = self.detecting(cv_image)
+            
+            # Display the processed image
+            cv2.imshow("Processed Undistorted Image", processed_image)
+            cv2.waitKey(1)  # Necessary for OpenCV window to update
 
-    def process_image(self, image):
+    def detecting(self, image):
         """
         Perform desired OpenCV operations on the image.
 
@@ -69,21 +87,33 @@ class CornerDetector(Node):
         Returns:
             Processed OpenCV image.
         """
-        # Apply Gaussian Blur and Binarization
-        blurred_image = cv2.medianBlur(image, 1)
-        ret, binary_image = cv2.threshold(blurred_image, 85, 255, cv2.THRESH_BINARY)
-        # binary_image = cv2.bitwise_not(binary_image)
+        self.binary_image = DetFilter(image)
         cor_detection = CornerDetection(log_level="DEBUG")
-        corner_coords = cor_detection.find(binary_image)
+        self.corner_coords = cor_detection.find(self.binary_image)
 
-        # Ecken einzeichnen
-
-        # Prepare the Image for Visualization
-        processed_image_bgr = cv2.cvtColor(binary_image, cv2.COLOR_GRAY2BGR)
-        img_cor = cor_detection.draw(processed_image_bgr)
+        # [DEBUG] Visualizing
+        processed_image_bgr = cv2.cvtColor(self.binary_image, cv2.COLOR_GRAY2BGR)
+        img_cor = cor_detection.draw(processed_image_bgr, self.corner_coords)
 
         # Return the processed image
         return img_cor
+    
+    def detected(self, image):
+        if (True):  # -----condition if first point of parking route is reached
+            self.state = "parking"
+        return image
+    
+    def parking(self, image):
+        if (True):  # ------condition if parked
+            self.state = "unparking"
+        return image
+    
+    def unparking(self, image):
+        
+        if (True):  # ---condition if unparked, end by giving control back 
+            self.state = "finished"
+        
+        return image
 
 
 def main(args=None):
