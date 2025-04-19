@@ -58,21 +58,21 @@ class CornerDetector(Node):
         while (self.state):
             if (self.state == "detecting"):
                 processed_image = self.detecting(cv_image)
-            
+
             elif (self.state == "detected"):
                 processed_image = self.detected(cv_image)
-                
+
             elif (self.state == "parking"):
                 processed_image = self.parking(cv_image)
 
             elif (self.state == "unparking"):
                 processed_image = self.unparking(cv_image)
-                
+
             elif (self.state == "finished"):
                 True
             else:
                 processed_image = self.detecting(cv_image)
-            
+
             # Display the processed image
             cv2.imshow("Processed Undistorted Image", processed_image)
             cv2.waitKey(1)  # Necessary for OpenCV window to update
@@ -97,22 +97,21 @@ class CornerDetector(Node):
 
         # Return the processed image
         return img_cor
-    
+
     def detected(self, image):
         if (True):  # -----condition if first point of parking route is reached
             self.state = "parking"
         return image
-    
+
     def parking(self, image):
         if (True):  # ------condition if parked
             self.state = "unparking"
         return image
-    
+
     def unparking(self, image):
-        
         if (True):  # ---condition if unparked, end by giving control back 
             self.state = "finished"
-        
+
         return image
 
 
