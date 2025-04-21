@@ -19,7 +19,7 @@ class CornerDetector(Node):
     topic and processes the images."""
     
     def __init__(self):
-        self.state = "detecting"
+
         super().__init__("undistorted_image_subscriber")
 
         # Declare and get parameters
@@ -40,12 +40,14 @@ class CornerDetector(Node):
         )
         self.subscription  # prevent unused variable warning
 
+        self.cor_detection = CornerDetection(log_level="DEBUG")
         # Initialize CvBridge
         self.bridge = CvBridge()
 
         self.get_logger().info(f"Subscribed to {undistorted_image_topic}")
 
     def listener_callback(self, msg):
+        self.state = "detecting"
         """Callback function for the undistorted image subscriber."""
         try:
             # Convert ROS Image message to OpenCV image
@@ -54,28 +56,27 @@ class CornerDetector(Node):
             self.get_logger().error(f"CvBridge Error: {e}")
             return
 
-        # Process the image using OpenCV
-        while (self.state):
-            if (self.state == "detecting"):
-                processed_image = self.detecting(cv_image)
+    # Process the image using OpenCV
+        if (self.state == "detecting"):
+            processed_image = self.detecting(cv_image)
 
-            elif (self.state == "detected"):
-                processed_image = self.detected(cv_image)
+        elif (self.state == "detected"):
+            processed_image = self.detected(cv_image)
 
-            elif (self.state == "parking"):
-                processed_image = self.parking(cv_image)
+        elif (self.state == "parking"):
+            processed_image = self.parking(cv_image)
 
-            elif (self.state == "unparking"):
-                processed_image = self.unparking(cv_image)
+        elif (self.state == "unparking"):
+            processed_image = self.unparking(cv_image)
 
-            elif (self.state == "finished"):
-                True
-            else:
-                processed_image = self.detecting(cv_image)
+        elif (self.state == "finished"):
+            True
+        else:
+            processed_image = self.detecting(cv_image)
 
-            # Display the processed image
-            cv2.imshow("Processed Undistorted Image", processed_image)
-            cv2.waitKey(1)  # Necessary for OpenCV window to update
+        # Display the processed image
+        cv2.imshow("Processed Undistorted Image", processed_image)
+        cv2.waitKey(1)  # Necessary for OpenCV window to update
 
     def detecting(self, image):
         """
@@ -87,13 +88,23 @@ class CornerDetector(Node):
         Returns:
             Processed OpenCV image.
         """
-        self.binary_image = DetFilter(image)
-        cor_detection = CornerDetection(log_level="DEBUG")
-        self.corner_coords = cor_detection.find(self.binary_image)
+        # Get coordinates at beginning to calculate later driving after
+        # detecting and pos change
+        self.detected_coords = [0, 0]
 
-        # [DEBUG] Visualizing
+        self.binary_image = DetFilter(image)
+
+
         processed_image_bgr = cv2.cvtColor(self.binary_image, cv2.COLOR_GRAY2BGR)
-        img_cor = cor_detection.draw(processed_image_bgr, self.corner_coords)
+
+        self.corner_coords = self.cor_detection.find(self.binary_image)
+        tt = self.corner_coords
+        img_cor = self.cor_detection.draw(processed_image_bgr, self.corner_coords)
+        
+        self.spots, self.pots_w = self.cor_detection.getFullParkingSpots(self.corner_coords)
+        img_cor = self.cor_detection.draw_spots(img_cor, spots=self.spots)
+        
+        # self.spots = getBestMatchingSpots(self.spots) check for objects in spots/get spot with best matching 
 
         # Return the processed image
         return img_cor
