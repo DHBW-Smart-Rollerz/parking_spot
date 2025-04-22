@@ -146,68 +146,56 @@ def calc_backsite_points(points, long_side=config["long_side"]):
 
     return np.array([a, b, c, d, center])
 
+def calc_route(x_p, y_p, R, entry_length=100, straight_step=80, curve_step=15):
+    route = []
 
-def generate_parking_route_world(start, a, b, c, d, turn_radius_m=3.0, steps_per_meter=10):
-    """
-    Generiert eine Route vom Startpunkt in den Parkplatz a-b-c-d in Weltkoordinaten.
-    
-    Parameter:
-    - start: Startposition [x, y]
-    - a, b: Vorderseite des Parkplatzes (an der Straße)
-    - c, d: Rückseite
-    - turn_radius_m: Wendekreisradius in Metern
-    - steps_per_meter: wie viele Punkte pro Meter auf dem Bogen erzeugt werden
+    # Punkt, ab dem die Gerade endet und die Kurve beginnt
+    x_entry = x_p - entry_length  # Beginn der Einfahrt zum Parkplatz (gerade Phase)
+    x_curve_start = x_entry - math.sqrt(max(R**2 - (y_p - 0)**2, 0))
 
-    Rückgabe:
-    - Liste von [x, y] Punkten, die die Route beschreiben
-    """
-    start = np.array(start[:2])
-    a, b, c, d = map(lambda p: np.array(p[:2]), (a, b, c, d))
+    # Gerade auf der Straße
+    x = 0
+    while x < x_curve_start:
+        route.append((x, 0, 0))
+        x += straight_step
 
-    # Mittelpunkt der Parkplatzfront (Einfahrt)
-    entry = (a + b) / 2
-    front_vec = b - a
-    front_vec = front_vec / np.linalg.norm(front_vec)
+    # Mittelpunkt der Kurve
+    mx = x_entry
+    my = y_p - R
 
-    # Normalenvektor zur Parkplatzfront (zeigt auf Straße)
-    normal = np.array([-front_vec[1], front_vec[0]])
+    # Startpunkt der Kurve
+    sx = x_curve_start
+    sy = 0
 
-    # Punkt vor dem Parkplatz entlang der Einfahrt
-    pre_entry = entry - normal * turn_radius_m
+    # Start- und Endwinkel der Kurve
+    dx0 = sx - mx
+    dy0 = sy - my
+    theta_start = math.atan2(dy0, dx0)
 
-    # Kreisbahn vorbereiten: Wir wollen von rechts kommend (auf rechter Spur) in Richtung pre_entry biegen
-    dir_vec = (pre_entry - start)
-    dir_vec = dir_vec / np.linalg.norm(dir_vec)
-    ortho = np.array([-dir_vec[1], dir_vec[0]])
+    ex = x_entry
+    ey = y_p - entry_length * (y_p / math.sqrt(x_p**2 + y_p**2))  # leicht angepasst
+    dx1 = ex - mx
+    dy1 = ey - my
+    theta_end = math.atan2(dy1, dx1)
 
-    # Mittelpunkt des Wendebogens
-    circle_center = start + ortho * turn_radius_m
+    if theta_end < theta_start:
+        theta_end += 2 * math.pi
 
-    # Start- und Endwinkel berechnen
-    start_angle = np.arctan2(start[1] - circle_center[1], start[0] - circle_center[0])
-    end_angle = np.arctan2(pre_entry[1] - circle_center[1], pre_entry[0] - circle_center[0])
+    arc_length = R * (theta_end - theta_start)
+    steps = max(2, int(arc_length / curve_step))
 
-    clockwise = np.cross(dir_vec, pre_entry - start) < 0
-    if clockwise and end_angle > start_angle:
-        end_angle -= 2 * np.pi
-    elif not clockwise and end_angle < start_angle:
-        end_angle += 2 * np.pi
+    for i in range(steps + 1):
+        theta = theta_start + (theta_end - theta_start) * i / steps
+        x = mx + R * math.cos(theta)
+        y = my + R * math.sin(theta)
+        route.append((x, y, 0))
 
-    # Kreisbogenpunkte
-    arc_len = abs(end_angle - start_angle) * turn_radius_m
-    num_points = max(2, int(arc_len * steps_per_meter))
-    angles = np.linspace(start_angle, end_angle, num_points)
+    # Gerade in den Parkplatz rein
+    steps_entry = max(1, int(entry_length / straight_step))
+    dx = (x_p - ex) / steps_entry
+    dy = (y_p - ey) / steps_entry
 
-    arc_points = [
-        [
-            circle_center[0] + turn_radius_m * np.cos(a),
-            circle_center[1] + turn_radius_m * np.sin(a)
-        ] for a in angles
-    ]
+    for i in range(1, steps_entry + 1):
+        route.append((ex + i * dx, ey + i * dy, 0))
 
-    # Gerade Linie: pre_entry → entry → Parkplatzmitte
-    center = (c + d) / 2
-    line_points = [pre_entry.tolist(), entry.tolist(), center.tolist()]
-
-    return [start.tolist()] + arc_points + line_points
-
+    return route

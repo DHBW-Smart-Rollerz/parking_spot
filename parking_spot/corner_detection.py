@@ -11,6 +11,7 @@ from camera_preprocessing.transformation.coordinate_transform import (
     CoordinateTransform,
 )
 from parking_spot.square_points import *
+from scipy.integrate import quad
 
 config = {
     "short_side": 380,
@@ -248,23 +249,48 @@ class CornerDetection(Detection):
         self._log(f"Anzahl der Parkplätze: {spots.__len__()}", "DEBUG")
 
         for spot in spots:
-            for i in range(0, len(spot)):
-                x, y = spot[i].flatten()  # oder corner.ravel()
+            points = spot[:4]
+            pts = np.array([p[0] for p in points])
 
-                if ((0 <= x <= 800) and (0 <= y <= 640)):
-                    if(i <= 2): # line from 1-2/2-3/3-4 point
-                        x2, y2 = spot[i + 1].flatten()
-                        
-                    if(i == 1):
-                        x2, y2 = spot[3].flatten()
-                        img = cv.line(img, (int(x), int(y)), (int(x2), int(y2)), (0, 0, 255), 2)
-                    elif(i == 3): # line from 4th to 1st point
-                        x2, y2 = spot[1].flatten()
-                        img = cv.line(img, (int(x), int(y)), (int(x2), int(y2)), (0, 0, 255), 2)
-                    elif(i == 4): 
-                        img = cv.circle(img, (int(x), int(y)), thickness, [0, 255, 0], -1)
+            # nach y sortieren: oben zuerst
+            sorted_by_y = pts[np.argsort(pts[:, 1])]
+
+            top = sorted_by_y[:2]
+            bottom = sorted_by_y[2:4]
+
+            # innerhalb top/bottom nach x sortieren
+            top_left, top_right = top[np.argsort(top[:, 0])]
+            bottom_left, bottom_right = bottom[np.argsort(bottom[:, 0])]
+            pts = np.array([top_right, bottom_right, bottom_left, top_left])
+            for i in range(0, 4):
+                if (i<3):
+                    x, y = pts[i].flatten()
+                    x2, y2 = pts[i+1].flatten()
+                else:
+                    x, y = pts[i].flatten()
+                    x2, y2 = pts[0].flatten()
+                img = cv.line(img, (int(x), int(y)), (int(x2), int(y2)), (0, 0, 255), 2)
+
+            x, y = spot[4].flatten()
+            if ((0 <= x <= 800) and (0 <= y <= 640)):
+                img = cv.circle(img, (int(x), int(y)), thickness, [0, 255, 0], -1)
 
         return img
+    
+
+    # Generierung der Route entlang der Clothoide
+    def generate_clothoide_route(x_origin, y_origin, r, a, num_points=100):
+
+        route = []
+
+        # Bogenlängen-Werte für die Route
+        s_values = np.linspace(0, 10 * r, num_points)  # Strecke entlang der Clothoide
+
+        for s in s_values:
+            x = x_origin + clothoide_x(s, a)
+            y = y_origin + clothoide_y(s, a)
+            route.append(x, y, 0)
+            
 
 def remove_duplicates(spots):
     unique = []
@@ -282,3 +308,9 @@ def are_same_spot(p1, p2):
         (np.allclose(p1[0], p2[0]) and np.allclose(p1[1], p2[1])) or
         (np.allclose(p1[0], p2[1]) and np.allclose(p1[1], p2[0]))
     )
+
+def clothoide_x(s, a):
+    return quad(lambda tau: np.cos((a**2 / 2) * tau**2), 0, s)[0]
+
+def clothoide_y(s, a):
+    return quad(lambda tau: np.sin((a**2 / 2) * tau**2), 0, s)[0]

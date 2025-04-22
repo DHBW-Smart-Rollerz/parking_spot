@@ -98,13 +98,14 @@ class CornerDetector(Node):
         processed_image_bgr = cv2.cvtColor(self.binary_image, cv2.COLOR_GRAY2BGR)
 
         self.corner_coords = self.cor_detection.find(self.binary_image)
-        tt = self.corner_coords
-        img_cor = self.cor_detection.draw(processed_image_bgr, self.corner_coords)
-        
-        self.spots, self.pots_w = self.cor_detection.getFullParkingSpots(self.corner_coords)
-        img_cor = self.cor_detection.draw_spots(img_cor, spots=self.spots)
-        
-        # self.spots = getBestMatchingSpots(self.spots) check for objects in spots/get spot with best matching 
+        #img_cor = self.cor_detection.draw(processed_image_bgr, self.corner_coords)
+
+        self.spots, self.spots_w = self.cor_detection.getFullParkingSpots(self.corner_coords)
+        img_cor = self.cor_detection.draw_spots(processed_image_bgr, spots=self.spots)
+        if (len(self.spots_w) > 2):
+            img_cor = self.cor_detection.get_draw_route(self.spots_w[2], img_cor)
+            
+        # self.spots = getBestMatchingSpots(self.spots) check for objects in spots/get spot with best matching distances between points
 
         # Return the processed image
         return img_cor
