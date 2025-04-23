@@ -102,8 +102,8 @@ class CornerDetector(Node):
 
         self.spots, self.spots_w = self.cor_detection.getFullParkingSpots(self.corner_coords)
         img_cor = self.cor_detection.draw_spots(processed_image_bgr, spots=self.spots)
-        if (len(self.spots_w) > 2):
-            img_cor = self.cor_detection.get_draw_route(self.spots_w[2], img_cor)
+        if (len(self.spots_w)):
+            self.route, img_cor = self.cor_detection.get_draw_route(self.spots_w[len(self.spots_w) - 1], img_cor)
             
         # self.spots = getBestMatchingSpots(self.spots) check for objects in spots/get spot with best matching distances between points
 

@@ -11,7 +11,6 @@ from camera_preprocessing.transformation.coordinate_transform import (
     CoordinateTransform,
 )
 from parking_spot.square_points import *
-from scipy.integrate import quad
 
 config = {
     "short_side": 380,
@@ -277,19 +276,18 @@ class CornerDetection(Detection):
 
         return img
     
+    def get_draw_route(self, points, img):
+        print(points[0], points[1], points[2], points[3], "SPOTS")
 
-    # Generierung der Route entlang der Clothoide
-    def generate_clothoide_route(x_origin, y_origin, r, a, num_points=100):
-
-        route = []
-
-        # Bogenlängen-Werte für die Route
-        s_values = np.linspace(0, 10 * r, num_points)  # Strecke entlang der Clothoide
-
-        for s in s_values:
-            x = x_origin + clothoide_x(s, a)
-            y = y_origin + clothoide_y(s, a)
-            route.append(x, y, 0)
+        straight = calc_route(points[4][0], points[4][1], 450)
+        curve = generate_relative_points(points[4])
+        route = straight + curve
+        self._log(f"Route: {route}", "DEBUG")
+        for point in route:
+            pxpoint = self.transform.world_to_camera(point)
+            x,y = pxpoint.flatten()
+            img = cv.circle(img, (int(x), int(y)), 3, [255, 0, 0], -1)
+        return route, img
             
 
 def remove_duplicates(spots):
@@ -308,9 +306,3 @@ def are_same_spot(p1, p2):
         (np.allclose(p1[0], p2[0]) and np.allclose(p1[1], p2[1])) or
         (np.allclose(p1[0], p2[1]) and np.allclose(p1[1], p2[0]))
     )
-
-def clothoide_x(s, a):
-    return quad(lambda tau: np.cos((a**2 / 2) * tau**2), 0, s)[0]
-
-def clothoide_y(s, a):
-    return quad(lambda tau: np.sin((a**2 / 2) * tau**2), 0, s)[0]
