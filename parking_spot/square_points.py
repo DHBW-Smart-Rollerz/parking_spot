@@ -97,8 +97,6 @@ def find_collinear_triplets(
                         collinear_groups.append((p2))
                         collinear_groups.append((p3))
 
-    print("Anzahl der gefundenen Tripel:", len(collinear_groups))
-    print(collinear_groups)
     unique_list = filter_doubles(collinear_groups)
     return unique_list
 

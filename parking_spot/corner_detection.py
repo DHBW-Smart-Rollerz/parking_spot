@@ -243,15 +243,13 @@ class CornerDetection(Detection):
         spots = None) -> np.ndarray:
         """draws points on image
         """
-        if spots is None:
+        if spots is None or len(spots) == 0 or spots[0] is None:
             return img
         self._log(f"Anzahl der Parkplätze: {spots.__len__()}", "DEBUG")
-
         for spot in spots:
             points = spot[:4]
             pts = np.array([p[0] for p in points])
 
-            # nach y sortieren: oben zuerst
             sorted_by_y = pts[np.argsort(pts[:, 1])]
 
             top = sorted_by_y[:2]
@@ -277,7 +275,7 @@ class CornerDetection(Detection):
         return img
     
     def get_draw_route(self, points, img):
-        print(points[0], points[1], points[2], points[3], "SPOTS")
+        points = [p.flatten() for p in points] # maybe remove if error
 
         straight = calc_route(points[4][0], points[4][1], 450)
         curve = generate_relative_points(points[4])

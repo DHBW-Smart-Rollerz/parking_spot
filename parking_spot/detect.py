@@ -1,4 +1,4 @@
-from parking_spot.image_operations import DetFilter
+from parking_spot.image_operations import DetFilter, getBestMatchingSpots
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -101,17 +101,24 @@ class CornerDetector(Node):
         #img_cor = self.cor_detection.draw(processed_image_bgr, self.corner_coords)
 
         self.spots, self.spots_w = self.cor_detection.getFullParkingSpots(self.corner_coords)
-        img_cor = self.cor_detection.draw_spots(processed_image_bgr, spots=self.spots)
-        if (len(self.spots_w)):
-            self.route, img_cor = self.cor_detection.get_draw_route(self.spots_w[len(self.spots_w) - 1], img_cor)
+        
+        best_matching_spot, best_matching_spot_w = getBestMatchingSpots(self.spots, self.spots_w, self.binary_image)
+        
+        img_cor = self.cor_detection.draw_spots(processed_image_bgr, spots=[best_matching_spot])
+        
+        # self.chosen_spot = getBestMatchingSpots(self.spots) check for objects in spots/get spot with best matching distances between points
+        
+        #stop vehicle, recalculate with coordinate since start of iteration
+        
+        if (best_matching_spot is not None):
+            self.route, img_cor = self.cor_detection.get_draw_route(best_matching_spot, img_cor)
             
-        # self.spots = getBestMatchingSpots(self.spots) check for objects in spots/get spot with best matching distances between points
 
         # Return the processed image
         return img_cor
 
     def detected(self, image):
-        if (True):  # -----condition if first point of parking route is reached
+        if (True):  # -----condition if last point of route is reached
             self.state = "parking"
         return image
 
