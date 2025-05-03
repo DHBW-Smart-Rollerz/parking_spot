@@ -111,7 +111,7 @@ class CornerDetector(Node):
         #stop vehicle, recalculate with coordinate since start of iteration
         
         if (best_matching_spot is not None):
-            self.route, img_cor = self.cor_detection.get_draw_route(best_matching_spot, img_cor)
+            self.route, img_cor = self.cor_detection.get_draw_route(best_matching_spot_w, img_cor)
             
 
         # Return the processed image
