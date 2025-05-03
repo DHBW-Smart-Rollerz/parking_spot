@@ -1,1 +1,0 @@
-THRESH_VALUE = 65
