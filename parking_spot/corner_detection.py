@@ -11,16 +11,9 @@ from camera_preprocessing.transformation.coordinate_transform import (
     CoordinateTransform,
 )
 from parking_spot.square_points import *
-
-config = {
-    "short_side": 380,
-    "long_side": 490,
-    "length_tolerance": 0.15,
-    "angle_tolerance": 10,
-    "vertical_tolerance": 10,
-    "interestx": 255,
-    "interesty": 280,
-}
+from parking_spot.config import PARKING_SPOT_CONFIG, VEHICLE_CONFIG
+config = PARKING_SPOT_CONFIG
+car_config = VEHICLE_CONFIG
 
 
 class Detection(abc.ABC):
@@ -277,7 +270,7 @@ class CornerDetection(Detection):
     def get_draw_route(self, points, img):
         points = [p.flatten() for p in points] # maybe remove if error
 
-        route = generate_route_with_quarter_turn(points[4][0], points[4][1], r=260, num_points_curve=10)
+        route = generate_route_with_quarter_turn(points[4][0], points[4][1], r=car_config["radius_in_mm"], num_points_curve=10)
         self._log(f"Route: {route}", "DEBUG")
         for point in route:
             pxpoint = self.transform.world_to_camera(point)

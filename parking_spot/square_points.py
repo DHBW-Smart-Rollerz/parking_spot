@@ -2,16 +2,11 @@ import itertools
 import math
 import numpy as np
 from itertools import combinations, permutations
+from parking_spot.config import PARKING_SPOT_CONFIG
 
 
 # standard config
-config = {
-    "short_side": 380,
-    "long_side": 490,
-    "length_tolerance": 0.15,
-    "angle_tolerance": 10,
-    "vertical_tolerance": 10,
-}
+config = PARKING_SPOT_CONFIG
 
 
 def is_right_angle(v1, v2, angle_tolerance):
@@ -160,6 +155,5 @@ def generate_route_with_quarter_turn(xp, yp, r=5, num_points_curve=20):
 
     route.append((xp, yp, 0))
     route_sorted = sorted(route, key=lambda point: (point[0], point[1]))  # Zuerst nach x, dann nach y
-    print(route_sorted, "sorted")
     return route_sorted
 
