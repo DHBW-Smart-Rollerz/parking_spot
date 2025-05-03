@@ -277,9 +277,7 @@ class CornerDetection(Detection):
     def get_draw_route(self, points, img):
         points = [p.flatten() for p in points] # maybe remove if error
 
-        straight = calc_route(points[4][0], points[4][1], 450)
-        curve = generate_relative_points(points[4])
-        route = straight + curve
+        route = generate_route_with_quarter_turn(points[4][0], points[4][1], r=260, num_points_curve=10)
         self._log(f"Route: {route}", "DEBUG")
         for point in route:
             pxpoint = self.transform.world_to_camera(point)

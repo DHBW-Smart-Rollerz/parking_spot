@@ -135,31 +135,31 @@ def calc_backsite_points(points, long_side=config["long_side"]):
 
     return np.array([a, b, c, d, center])
 
-def calc_route(x_p, y_p, R, entry_length=100, straight_step=80, curve_step=15):
+
+def generate_route_with_quarter_turn(xp, yp, r=5, num_points_curve=20):
     route = []
 
-
-    # Gerade auf der Straße
-    x = 0
-    while x < x_p*0.59:
+        
+    for i in range(10):
+        x = i * (xp - r) / 10  
         route.append((x, 0, 0))
-        x += straight_step
-
-    return route
-
-def generate_relative_points(anchor):
-    relative_offsets = {
-        "J": (-0.02 * anchor[0], -0.59 * anchor[1]),
-        "I": (-0.03 * anchor[0], -0.65 * anchor[1]),
-        "H": (-0.05 * anchor[0], -0.71 * anchor[1]),
-        "G": (-0.06 * anchor[0], -0.77 * anchor[1]),
-        "F": (-0.08 * anchor[0], -0.83 * anchor[1]),
-        "E": (-0.11 * anchor[0], -0.89 * anchor[1]),
-        "D": (-0.14 * anchor[0], -0.94 * anchor[1]),
-        "C": (-0.24 * anchor[0], -0.98 * anchor[1]),
-        "B": (-0.31 * anchor[0], -1.00 * anchor[1]),
-        "A": (-1 * anchor[0], -1 * anchor[1]),
-    }
+        
+    for i in range(num_points_curve + 1):
+        # Berechnung des Winkels von 270° bis 360°
+        theta = (math.pi / 2) * (i / num_points_curve) + (3 * math.pi / 2)  # Verschiebung um 270°
+        
+        # Berechnung der x- und y-Koordinaten
+        x = xp - r + r * math.cos(theta)
+        y = r + r * math.sin(theta)
+        
+        route.append((x, y, 0))
     
-    ret = [(anchor[0] + dx, anchor[1] + dy, 0) for name, (dx, dy) in relative_offsets.items()]
-    return ret
+    for i in range(5):
+        y = i * (yp - r) / 5  
+        route.append((xp, y + r, 0))
+
+    route.append((xp, yp, 0))
+    route_sorted = sorted(route, key=lambda point: (point[0], point[1]))  # Zuerst nach x, dann nach y
+    print(route_sorted, "sorted")
+    return route_sorted
+
