@@ -1,9 +1,10 @@
 from parking_spot.image_operations import DetFilter, getBestMatchingSpots
-from parking_spot.square_points import transform_points
+from parking_spot.square_points import has_turned_90_degrees, transform_points
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import Image
+from std_msgs.msg import Bool, Int32
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
@@ -15,6 +16,14 @@ from camera_preprocessing.transformation.coordinate_transform import (
     CoordinateTransform,
 )
 
+speed_straight = 0 # speed driving straight until turning point
+steering_angle_turn = 0 # steering angle to turn from street to spot
+speed_to_spot = 0 # speed while turning and driving into spot
+tolerance_slow_down = 50 # tolerance in turning point area where vehicle slows down
+tolerance_turn = 10 # tolerance at turning point and verhicle turns
+tolerance_parking = 20 # tolerance to center of parking spot
+factor_backwards = -1 # factor to drive backwards
+
 
 class CornerDetector(Node):
     """A ROS2 node that subscribes to the undistorted image
@@ -23,6 +32,10 @@ class CornerDetector(Node):
     def __init__(self):
 
         super().__init__("undistorted_image_subscriber")
+
+        self.speed_publisher = self.create_publisher(Int32, '/control/speed/target', 10)
+        self.steering_publisher = self.create_publisher(Int32, '/control/steering_angle/target', 10)
+        self.control_publisher = self.create_publisher(Bool, '/parkingspot/use_control', 10)
 
 
         self.declare_parameter("undistorted_image_topic", "/camera/image/undistorted")
@@ -138,34 +151,66 @@ class CornerDetector(Node):
         #stop vehicle, recalculate with coordinate since start of iteration
         
         if (best_matching_spot_w is not None):
-            self.route, self.route_two_points, img_cor = self.cor_detection.get_draw_route(best_matching_spot_w, img_cor)
-            self.route_in_global_global = transform_points(self.latest_pose.position.x, self.latest_pose.position.y, self.latest_pose.orientation.z, self.route_two_points)
+            self.route, self.route_three_points, img_cor = self.cor_detection.get_draw_route(best_matching_spot_w, img_cor)
+            self.route_in_global_global = transform_points(self.latest_pose.position.x, self.latest_pose.position.y, self.latest_pose.orientation.z, self.route_three_points)
             self.state = "driving_straight"
           
         # Return the processed image
         #return img_cor
 
     def driving_straight(self):
-        turning_point = self.route_two_points[0]
-        xp_smaller = turning_point[0] < self.latest_pose.position.x
-        yp_smaller = turning_point[1] < self.latest_pose.position.y
+        turning_point = self.route_three_points[0]
 
-        while (not (self.latest_pose.position.x - 50 < turning_point[0] < self.latest_pose.position.x + 50) and not ( self.latest_pose.position.y - 50 < turning_point[1] < self.latest_pose.position.y + 50)):    
-            
-        
-        self.state = "turn_and_drive_spot"
+        self.publish_bool(self.control_publisher, True) # tale control over vehicle
+        self.publish_int(self.speed_publisher, speed_straight) # set speed to drive straight
+
+        if (not (self.latest_pose.position.x - tolerance_slow_down < turning_point[0] < self.latest_pose.position.x + tolerance_slow_down) and not ( self.latest_pose.position.y - tolerance_slow_down < turning_point[1] < self.latest_pose.position.y + tolerance_slow_down)): 
+            self.publish_int(self.speed_publisher, speed_straight) # set speed to drive straight            
+        elif (not (self.latest_pose.position.x - tolerance_turn < turning_point[0] < self.latest_pose.position.x + tolerance_turn) and not ( self.latest_pose.position.y - tolerance_turn < turning_point[1] < self.latest_pose.position.y + tolerance_turn)): 
+            self.publish_int(self.speed_publisher, speed_to_spot) # set speed to park
+        else:
+            self.publish_int(self.speed_publisher, speed_to_spot) #set to zero if reaction to slow
+            self.rad_before_turn = self.latest_pose.orientation.z
+            self.state = "turn_and_drive_spot"
 
     def turn_and_drive_spot(self, image):
-        if (True):  # ------condition if parked
+        if( not has_turned_90_degrees(self.rad_before_turn, self.latest_pose.orientation.z, tolerance_deg=tolerance_turn)):
+            self.publish_int(self.steering_publisher, steering_angle_turn)
+            self.publish_int(self.speed_publisher, speed_to_spot) 
+        elif( not (self.latest_pose.position.x - tolerance_parking < self.route_three_points[2][0] < self.latest_pose.position.x + tolerance_parking) and not ( self.latest_pose.position.y - tolerance_parking < self.route_three_points[2][1] < self.latest_pose.position.y + tolerance_parking)):
+            self.publish_int(self.steering_publisher, 0)
+            self.publish_int(self.speed_publisher, speed_to_spot) 
+        else:
+            self.rad_before_turn = self.latest_pose.orientation.z
+            self.publish_int(self.steering_publisher, 0)
+            self.publish_int(self.speed_publisher, 0) 
             self.state = "unparking"
         return image
 
     def unparking(self, image):
-        if (True):  # ---condition if unparked, end by giving control back 
+        if ( not (self.latest_pose.position.x - tolerance_parking < self.route_three_points[1][0] < self.latest_pose.position.x + tolerance_parking) and not ( self.latest_pose.position.y - tolerance_parking < self.route_three_points[1][1] < self.latest_pose.position.y + tolerance_parking)):
+            self.publish_int(self.steering_publisher, 0)
+            self.publish_int(self.speed_publisher, factor_backwards * speed_to_spot)
+        elif (not has_turned_90_degrees(self.rad_before_turn, self.latest_pose.orientation.z, tolerance_deg=tolerance_turn)):
+            self.publish_int(self.steering_publisher, steering_angle_turn)
+            self.publish_int(self.speed_publisher, factor_backwards * speed_to_spot)
+        else:
+            self.publish_int(self.steering_publisher, 0)
+            self.publish_int(self.speed_publisher, 0)
+            self.publish_bool(self.control_publisher, False)
             self.state = "finished"
 
         return image
 
+    def publish_bool(self, publisher, value: bool):
+        msg = Bool()
+        msg.data = value
+        publisher.publish(msg)
+
+    def publish_int(self, publisher, value: int):
+        msg = Int32()
+        msg.data = value
+        publisher.publish(msg)
 
 def main(args=None):
     """Main function to run the UndistortedImageSubscriber node."""

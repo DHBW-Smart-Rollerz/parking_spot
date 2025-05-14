@@ -7,6 +7,7 @@ PARKING_SPOT_CONFIG = {
     "vertical_tolerance": 10,
     "interestx": 255,
     "interesty": 280,
+    "turn_tolerance_in_deg": 2,
 }
 VEHICLE_CONFIG = {
     "radius_in_mm": 260

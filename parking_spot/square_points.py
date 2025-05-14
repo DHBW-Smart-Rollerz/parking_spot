@@ -153,10 +153,10 @@ def generate_route_with_quarter_turn(xp, yp, r=5, num_points_curve=20):
         y = i * (yp - r) / 5  
         route.append((xp, y + r, 0))
 
-    two_points_route = [(xp-r, 0, 0), (xp, yp, 0)]
+    route_three_points = [(xp-r, 0, 0), (xp, yp-r, 0), (xp, yp, 0)]
     route.append((xp, yp, 0))
     route_sorted = sorted(route, key=lambda point: (point[0], point[1]))  # Zuerst nach x, dann nach y
-    return route_sorted, two_points_route
+    return route_sorted, route_three_points
 
 def transform_points(xc, yc, yaw, local_points):
     """
@@ -182,3 +182,10 @@ def transform_points(xc, yc, yaw, local_points):
         world_points.append((xw, yw))
     
     return world_points
+
+def has_turned_90_degrees(old_angle_rad, new_angle_rad, tolerance_deg = config["turn_tolerance_in_deg"]):
+    
+    tolerance_rad = math.radians(tolerance_deg)
+    angle_diff = (new_angle_rad - old_angle_rad + math.pi) % (2 * math.pi) - math.pi  
+
+    return abs(abs(angle_diff) - math.pi/2) <= tolerance_rad

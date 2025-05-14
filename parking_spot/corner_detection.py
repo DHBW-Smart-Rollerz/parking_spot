@@ -270,13 +270,13 @@ class CornerDetection(Detection):
     def get_draw_route(self, points, img):
         points = [p.flatten() for p in points] # maybe remove if error
 
-        route, two_point_route = generate_route_with_quarter_turn(points[4][0], points[4][1], r=car_config["radius_in_mm"], num_points_curve=10)
+        route, route_three_points = generate_route_with_quarter_turn(points[4][0], points[4][1], r=car_config["radius_in_mm"], num_points_curve=10)
         self._log(f"Route: {route}", "DEBUG")
         for point in route:
             pxpoint = self.transform.world_to_camera(point)
             x,y = pxpoint.flatten()
             img = cv.circle(img, (int(x), int(y)), 3, [255, 0, 0], -1)
-        return route, two_point_route, img
+        return route, route_three_points, img
             
 
 def remove_duplicates(spots):
