@@ -153,7 +153,32 @@ def generate_route_with_quarter_turn(xp, yp, r=5, num_points_curve=20):
         y = i * (yp - r) / 5  
         route.append((xp, y + r, 0))
 
+    two_points_route = [(xp-r, 0, 0), (xp, yp, 0)]
     route.append((xp, yp, 0))
     route_sorted = sorted(route, key=lambda point: (point[0], point[1]))  # Zuerst nach x, dann nach y
-    return route_sorted
+    return route_sorted, two_points_route
 
+def transform_points(xc, yc, yaw, local_points):
+    """
+        xc : current x-Position
+        yc : current y-Position
+        yaw : yaw in rad
+        local_points (list of tuple): list of (xp, yp, zp) points of route relative to the vehicle
+
+    Returns:
+        list of points in world coordinates
+    """
+    R = np.array([
+        [math.cos(yaw), -math.sin(yaw)],
+        [math.sin(yaw),  math.cos(yaw)]
+    ])
+    
+    world_points = []
+    for xp, yp, zp in local_points:
+        rel_vec = np.array([xp, yp])
+        rotated = R @ rel_vec
+        xw = xc + rotated[0]
+        yw = yc + rotated[1]
+        world_points.append((xw, yw))
+    
+    return world_points

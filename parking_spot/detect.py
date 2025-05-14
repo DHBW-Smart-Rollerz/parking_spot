@@ -1,6 +1,8 @@
 from parking_spot.image_operations import DetFilter, getBestMatchingSpots
+from parking_spot.square_points import transform_points
 import rclpy
 from rclpy.node import Node
+from geometry_msgs.msg import Pose
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
@@ -22,8 +24,10 @@ class CornerDetector(Node):
 
         super().__init__("undistorted_image_subscriber")
 
-        # Declare and get parameters
+
         self.declare_parameter("undistorted_image_topic", "/camera/image/undistorted")
+        self.declare_parameter("pose_estimation_topic", "/pose_estimation/pose")
+
 
         undistorted_image_topic = (
             self.get_parameter("undistorted_image_topic")
@@ -31,7 +35,6 @@ class CornerDetector(Node):
             .string_value
         )
 
-        # Create a subscription to the undistorted image topic
         self.subscription = self.create_subscription(
             Image,
             undistorted_image_topic,
@@ -40,11 +43,28 @@ class CornerDetector(Node):
         )
         self.subscription  # prevent unused variable warning
 
+        self.pose_subscription = self.create_subscription(
+            Pose,
+            self.get_parameter("pose_estimation_topic"), 
+            self.pose_callback,
+            10,
+        )
+        self.pose_subscription  # prevent unused variable warning
+        self.latest_pose = None
+
         self.cor_detection = CornerDetection(log_level="DEBUG")
         # Initialize CvBridge
         self.bridge = CvBridge()
 
         self.get_logger().info(f"Subscribed to {undistorted_image_topic}")
+
+    def pose_callback(self, msg: Pose):
+        self.latest_pose = msg
+        self.get_logger().debug(
+            f"Received pose: position=({msg.position.x:.2f}, {msg.position.y:.2f}, {msg.position.z:.2f}), "
+            f"orientation=({msg.orientation.x:.2f}, {msg.orientation.y:.2f}, {msg.orientation.z:.2f}, {msg.orientation.w:.2f})"
+        )
+
 
     def listener_callback(self, msg):
         self.state = "detecting"
@@ -58,25 +78,30 @@ class CornerDetector(Node):
 
     # Process the image using OpenCV
         if (self.state == "detecting"):
-            processed_image = self.detecting(cv_image)
+            #processed_image = 
+            self.detecting(cv_image)
 
-        elif (self.state == "detected"):
-            processed_image = self.detected(cv_image)
+        elif (self.state == "driving_straight"):
+            #processed_image = 
+            self.driving_straight()
 
-        elif (self.state == "parking"):
-            processed_image = self.parking(cv_image)
+        elif (self.state == "turn_and_drive_spot"):
+            #processed_image = 
+            self.parking()
 
         elif (self.state == "unparking"):
-            processed_image = self.unparking(cv_image)
+            #processed_image = 
+            self.unparking()
 
         elif (self.state == "finished"):
             True
         else:
-            processed_image = self.detecting(cv_image)
+            #processed_image = 
+            self.detecting()
 
         # Display the processed image
-        cv2.imshow("Processed Undistorted Image", processed_image)
-        cv2.waitKey(1)  # Necessary for OpenCV window to update
+        #cv2.imshow("Processed Undistorted Image", processed_image)
+        #cv2.waitKey(1)  # Necessary for OpenCV window to update
 
     def detecting(self, image):
         """
@@ -103,26 +128,34 @@ class CornerDetector(Node):
         self.spots, self.spots_w = self.cor_detection.getFullParkingSpots(self.corner_coords)
         
         best_matching_spot, best_matching_spot_w = getBestMatchingSpots(self.spots, self.spots_w, self.binary_image)
+
+
         
-        img_cor = self.cor_detection.draw_spots(processed_image_bgr, spots=[best_matching_spot])
+        #img_cor = self.cor_detection.draw_spots(processed_image_bgr, spots=[best_matching_spot])
         
         # self.chosen_spot = getBestMatchingSpots(self.spots) check for objects in spots/get spot with best matching distances between points
         
         #stop vehicle, recalculate with coordinate since start of iteration
         
-        if (best_matching_spot is not None):
-            self.route, img_cor = self.cor_detection.get_draw_route(best_matching_spot_w, img_cor)
-            
-
+        if (best_matching_spot_w is not None):
+            self.route, self.route_two_points, img_cor = self.cor_detection.get_draw_route(best_matching_spot_w, img_cor)
+            self.route_in_global_global = transform_points(self.latest_pose.position.x, self.latest_pose.position.y, self.latest_pose.orientation.z, self.route_two_points)
+            self.state = "driving_straight"
+          
         # Return the processed image
-        return img_cor
+        #return img_cor
 
-    def detected(self, image):
-        if (True):  # -----condition if last point of route is reached
-            self.state = "parking"
-        return image
+    def driving_straight(self):
+        turning_point = self.route_two_points[0]
+        xp_smaller = turning_point[0] < self.latest_pose.position.x
+        yp_smaller = turning_point[1] < self.latest_pose.position.y
 
-    def parking(self, image):
+        while (not (self.latest_pose.position.x - 50 < turning_point[0] < self.latest_pose.position.x + 50) and not ( self.latest_pose.position.y - 50 < turning_point[1] < self.latest_pose.position.y + 50)):    
+            
+        
+        self.state = "turn_and_drive_spot"
+
+    def turn_and_drive_spot(self, image):
         if (True):  # ------condition if parked
             self.state = "unparking"
         return image
