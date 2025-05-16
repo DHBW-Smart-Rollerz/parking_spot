@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool, Int32
+from std_msgs.msg import Bool, Int16
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
@@ -33,9 +33,9 @@ class CornerDetector(Node):
         self.state = "detecting"
         super().__init__("undistorted_image_subscriber")
 
-        self.speed_publisher = self.create_publisher(Int32, "/control/speed/target", 10)
+        self.speed_publisher = self.create_publisher(Int16, "/control/speed/target", 10)
         self.steering_publisher = self.create_publisher(
-            Int32, "/control/steering_angle/target", 10
+            Int16, "/control/steering_angle/target", 10
         )
         self.control_publisher = self.create_publisher(
             Bool, "/parkingspot/use_control", 10
@@ -315,7 +315,7 @@ class CornerDetector(Node):
         publisher.publish(msg)
 
     def publish_int(self, publisher, value: int):
-        msg = Int32()
+        msg = Int16()
         msg.data = value
         publisher.publish(msg)
 
