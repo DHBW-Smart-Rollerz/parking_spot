@@ -12,6 +12,7 @@ from camera_preprocessing.transformation.coordinate_transform import (
 )
 from parking_spot.square_points import *
 from parking_spot.config import PARKING_SPOT_CONFIG, VEHICLE_CONFIG
+
 config = PARKING_SPOT_CONFIG
 car_config = VEHICLE_CONFIG
 
@@ -176,10 +177,9 @@ class CornerDetection(Detection):
         return self._last_result_w
 
     def draw(
-        self, img: np.ndarray, color=[0, 255, 0], thickness: int = 4,
-    points = None) -> np.ndarray:
-        """draws points on image
-        """
+        self, img: np.ndarray, color=[0, 255, 0], thickness: int = 4, points=None
+    ) -> np.ndarray:
+        """draws points on image"""
         if points is None:
             points = self._last_result
         if points is None:
@@ -191,7 +191,7 @@ class CornerDetection(Detection):
         self._log(f"{points.__len__()} Ecken erkannt")
 
         return img
-    
+
     def getFullParkingSpots(self, points):
         """
         calculates backcorners by input of front corners
@@ -204,11 +204,6 @@ class CornerDetection(Detection):
         # Versuche jede Kombination von benachbarten Punkten
         for i in range(len(points)):
             for j in range(i + 1, len(points)):
-                dist = distance(points[i], points[j])
-                if not (config["short_side"] * (1 - config["length_tolerance"]) <= dist <= config["short_side"] * (1 + config["length_tolerance"])):
-                    self._log(f"distance {dist} is not in range", "DEBUG")
-                    continue
-
                 spot = [points[i], points[j]]
                 full_spot = calc_backsite_points(spot)
 
@@ -216,10 +211,8 @@ class CornerDetection(Detection):
                     valid_spots.append(full_spot)
                 except IndexError:
                     valid_spots.append([full_spot])
-        
 
         unique_spots = remove_duplicates(valid_spots)
-        self._log(f"unique_spots {unique_spots}", "DEBUG")
 
         for i in range(0, len(unique_spots)):
             for point in unique_spots[i]:
@@ -229,16 +222,16 @@ class CornerDetection(Detection):
                 except IndexError:
                     self.parking_spots.append([self.transform.world_to_camera(point)])
                     self.parking_spots_w.append([point])
+        self._log(f"Anzahl der Parkplätze: {self.parking_spots.__len__()}", "DEBUG")
+
         return self.parking_spots, self.parking_spots_w
 
     def draw_spots(
-        self, img: np.ndarray, color=[0, 255, 0], thickness: int = 4, 
-        spots = None) -> np.ndarray:
-        """draws points on image
-        """
+        self, img: np.ndarray, color=[0, 255, 0], thickness: int = 4, spots=None
+    ) -> np.ndarray:
+        """draws points on image"""
         if spots is None or len(spots) == 0 or spots[0] is None:
             return img
-        self._log(f"Anzahl der Parkplätze: {spots.__len__()}", "DEBUG")
         for spot in spots:
             points = spot[:4]
             pts = np.array([p[0] for p in points])
@@ -253,31 +246,35 @@ class CornerDetection(Detection):
             bottom_left, bottom_right = bottom[np.argsort(bottom[:, 0])]
             pts = np.array([top_right, bottom_right, bottom_left, top_left])
             for i in range(0, 4):
-                if (i<3):
+                if i < 3:
                     x, y = pts[i].flatten()
-                    x2, y2 = pts[i+1].flatten()
+                    x2, y2 = pts[i + 1].flatten()
                 else:
                     x, y = pts[i].flatten()
                     x2, y2 = pts[0].flatten()
                 img = cv.line(img, (int(x), int(y)), (int(x2), int(y2)), (0, 0, 255), 2)
 
             x, y = spot[4].flatten()
-            if ((0 <= x <= 800) and (0 <= y <= 640)):
+            if (0 <= x <= 800) and (0 <= y <= 640):
                 img = cv.circle(img, (int(x), int(y)), thickness, [0, 255, 0], -1)
 
         return img
-    
-    def get_draw_route(self, points, img):
-        points = [p.flatten() for p in points] # maybe remove if error
 
-        route, route_three_points = generate_route_with_quarter_turn(points[4][0], points[4][1], r=car_config["radius_in_mm"], num_points_curve=10)
-        self._log(f"Route: {route}", "DEBUG")
+    def get_draw_route(self, points, img):
+        points = [p.flatten() for p in points]  # maybe remove if error
+
+        route, route_three_points = generate_route_with_quarter_turn(
+            points[4][0],
+            points[4][1],
+            r=car_config["radius_in_mm"],
+            num_points_curve=10,
+        )
         for point in route:
             pxpoint = self.transform.world_to_camera(point)
-            x,y = pxpoint.flatten()
+            x, y = pxpoint.flatten()
             img = cv.circle(img, (int(x), int(y)), 3, [255, 0, 0], -1)
         return route, route_three_points, img
-            
+
 
 def remove_duplicates(spots):
     unique = []
@@ -285,13 +282,12 @@ def remove_duplicates(spots):
         if not any(are_same_spot(spot, u) for u in unique):
             unique.append(spot)
     return unique
-    
-    
-def are_same_spot(p1, p2):
-    p1 = p1[0]  
-    p2 = p2[0]  
 
-    return (
-        (np.allclose(p1[0], p2[0]) and np.allclose(p1[1], p2[1])) or
-        (np.allclose(p1[0], p2[1]) and np.allclose(p1[1], p2[0]))
+
+def are_same_spot(p1, p2):
+    p1 = p1[0]
+    p2 = p2[0]
+
+    return (np.allclose(p1[0], p2[0]) and np.allclose(p1[1], p2[1])) or (
+        np.allclose(p1[0], p2[1]) and np.allclose(p1[1], p2[0])
     )

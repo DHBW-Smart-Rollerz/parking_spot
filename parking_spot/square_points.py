@@ -34,7 +34,7 @@ def distance(p1, p2):
 
 
 def angle_to_x_axis(p1, p2):
-    
+
     try:
         p_1 = p1[0]
         p_2 = p2[0]
@@ -84,9 +84,11 @@ def find_collinear_triplets(
                 angle = angle_between_three_points(p1, p2, p3)
                 if 180 - angle_threshold <= angle <= 180 + angle_threshold:
                     vertical_angle = angle_to_x_axis(p1, p3)
+
                     if (
                         abs(vertical_angle - 180) <= vertical_angle_tolerance
                         or abs(vertical_angle) <= vertical_angle_tolerance
+                        or abs(vertical_angle - 360) <= vertical_angle_tolerance
                     ):
                         collinear_groups.append((p1))
                         collinear_groups.append((p2))
@@ -95,11 +97,12 @@ def find_collinear_triplets(
     unique_list = filter_doubles(collinear_groups)
     return unique_list
 
+
 def filter_doubles(points):
     seen = set()
     new_points = []
     for point in points:
-        key = tuple(point[0])  
+        key = tuple(point[0])
         if key not in seen:
             seen.add(key)
             new_points.append(point)
@@ -122,11 +125,13 @@ def calc_backsite_points(points, long_side=config["long_side"]):
     ndx = (dy / small_side) * long_side
     ndy = (-dx / small_side) * long_side
 
-    a = np.array([x1, y1, 0])  
+    a = np.array([x1, y1, 0])
     b = np.array([x2, y2, 0])
     c = np.array([x1 - ndx, y1 - ndy, 0])
     d = np.array([x2 - ndx, y2 - ndy, 0])
-    center = np.array([(a[0] + b[0] + c[0] + d[0]) / 4, (a[1] + b[1] + c[1] + d[1]) / 4, 0])
+    center = np.array(
+        [(a[0] + b[0] + c[0] + d[0]) / 4, (a[1] + b[1] + c[1] + d[1]) / 4, 0]
+    )
 
     return np.array([a, b, c, d, center])
 
@@ -134,29 +139,33 @@ def calc_backsite_points(points, long_side=config["long_side"]):
 def generate_route_with_quarter_turn(xp, yp, r=5, num_points_curve=20):
     route = []
 
-        
     for i in range(10):
-        x = i * (xp - r) / 10  
+        x = i * (xp - r) / 10
         route.append((x, 0, 0))
-        
+
     for i in range(num_points_curve + 1):
         # Berechnung des Winkels von 270° bis 360°
-        theta = (math.pi / 2) * (i / num_points_curve) + (3 * math.pi / 2)  # Verschiebung um 270°
-        
+        theta = (math.pi / 2) * (i / num_points_curve) + (
+            3 * math.pi / 2
+        )  # Verschiebung um 270°
+
         # Berechnung der x- und y-Koordinaten
         x = xp - r + r * math.cos(theta)
         y = r + r * math.sin(theta)
-        
+
         route.append((x, y, 0))
-    
+
     for i in range(5):
-        y = i * (yp - r) / 5  
+        y = i * (yp - r) / 5
         route.append((xp, y + r, 0))
 
-    route_three_points = [(xp-r, 0, 0), (xp, yp-r, 0), (xp, yp, 0)]
+    route_three_points = [(xp - r, 0, 0), (xp, yp - r, 0), (xp, yp, 0)]
     route.append((xp, yp, 0))
-    route_sorted = sorted(route, key=lambda point: (point[0], point[1]))  # Zuerst nach x, dann nach y
+    route_sorted = sorted(
+        route, key=lambda point: (point[0], point[1])
+    )  # Zuerst nach x, dann nach y
     return route_sorted, route_three_points
+
 
 def transform_points(xc, yc, yaw, local_points):
     """
@@ -168,11 +177,8 @@ def transform_points(xc, yc, yaw, local_points):
     Returns:
         list of points in world coordinates
     """
-    R = np.array([
-        [math.cos(yaw), -math.sin(yaw)],
-        [math.sin(yaw),  math.cos(yaw)]
-    ])
-    
+    R = np.array([[math.cos(yaw), -math.sin(yaw)], [math.sin(yaw), math.cos(yaw)]])
+
     world_points = []
     for xp, yp, zp in local_points:
         rel_vec = np.array([xp, yp])
@@ -180,12 +186,15 @@ def transform_points(xc, yc, yaw, local_points):
         xw = xc + rotated[0]
         yw = yc + rotated[1]
         world_points.append((xw, yw))
-    
+
     return world_points
 
-def has_turned_90_degrees(old_angle_rad, new_angle_rad, tolerance_deg = config["turn_tolerance_in_deg"]):
-    
-    tolerance_rad = math.radians(tolerance_deg)
-    angle_diff = (new_angle_rad - old_angle_rad + math.pi) % (2 * math.pi) - math.pi  
 
-    return abs(abs(angle_diff) - math.pi/2) <= tolerance_rad
+def has_turned_90_degrees(
+    old_angle_rad, new_angle_rad, tolerance_deg=config["turn_tolerance_in_deg"]
+):
+
+    tolerance_rad = math.radians(tolerance_deg)
+    angle_diff = (new_angle_rad - old_angle_rad + math.pi) % (2 * math.pi) - math.pi
+
+    return abs(abs(angle_diff) - math.pi / 2) <= tolerance_rad
