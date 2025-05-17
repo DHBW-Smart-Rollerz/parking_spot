@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool, Int16
+from std_msgs.msg import Bool, Int16, Float32
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
@@ -16,9 +16,9 @@ from camera_preprocessing.transformation.coordinate_transform import (
     CoordinateTransform,
 )
 
-speed_straight = 40  # speed driving straight until turning point
-steering_angle_turn = 1  # steering angle to turn from street to spot
-speed_to_spot = 2  # speed while turning and driving into spot
+speed_straight = 0.40  # speed driving straight until turning point
+steering_angle_turn = -35  # steering angle to turn from street to spot
+speed_to_spot = 0.03  # speed while turning and driving into spot
 tolerance_slow_down = 50  # tolerance in turning point area where vehicle slows down
 tolerance_turn = 10  # tolerance at turning point and verhicle turns
 tolerance_parking = 20  # tolerance to center of parking spot
@@ -33,7 +33,9 @@ class CornerDetector(Node):
         self.state = "detecting"
         super().__init__("undistorted_image_subscriber")
 
-        self.speed_publisher = self.create_publisher(Int16, "/control/speed/target", 10)
+        self.speed_publisher = self.create_publisher(
+            Float32, "/control/speed/target", 10
+        )
         self.steering_publisher = self.create_publisher(
             Int16, "/control/steering_angle/target", 10
         )
@@ -233,7 +235,7 @@ class CornerDetector(Node):
             speed = speed_to_spot  # set to zero if reaction to slow
             self.rad_before_turn = self.latest_pose.orientation.z
             self.state = "turn_and_drive_spot"
-        self.publish_int(self.speed_publisher, speed)
+        self.publish_float(self.speed_publisher, speed)
         print(speed, "speed")
         return self.img_cor
 
@@ -269,7 +271,7 @@ class CornerDetector(Node):
             self.state = "unparking"
 
         self.publish_int(self.steering_publisher, steering)
-        self.publish_int(self.speed_publisher, speed)
+        self.publish_float(self.speed_publisher, speed)
         print(steering, "steering", speed, "speed")
         return self.img_cor
 
@@ -304,7 +306,7 @@ class CornerDetector(Node):
             self.state = "finished"
 
         self.publish_int(self.steering_publisher, steering)
-        self.publish_int(self.speed_publisher, speed)
+        self.publish_float(self.speed_publisher, speed)
         print(steering, "steering", speed, "speed")
 
         return self.img_cor
@@ -316,6 +318,11 @@ class CornerDetector(Node):
 
     def publish_int(self, publisher, value: int):
         msg = Int16()
+        msg.data = value
+        publisher.publish(msg)
+
+    def publish_float(self, publisher, value: float):
+        msg = Float32()
         msg.data = value
         publisher.publish(msg)
 
